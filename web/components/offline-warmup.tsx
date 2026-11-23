@@ -2,6 +2,8 @@
 import { useEffect } from "react";
 
 const CACHE = "sw-pages-v3", STATIC = "sw-static-v3", STAMP = "sw_warm";
+// Bump WARM_VERSION whenever the list of saved screens changes, so devices that saved the old list refresh straight away.
+const WARM_VERSION = "3", REFRESH_MS = 60 * 60e3;
 /** The attendance sheet is saved per class (not per date), so any date picked offline finds the class's page. */
 export const keyFor = (u: string) => {
   const x = new URL(u, location.origin);
@@ -9,7 +11,7 @@ export const keyFor = (u: string) => {
   return x.href;
 };
 
-/** After sign-in (and again after a reconnect, at most every few hours) saves every screen this person may use on the device,
+/** After sign-in (and again after a reconnect or an app update, at most once an hour) saves every screen this person may use on the device,
  *  so the whole interface opens without internet. Data shown offline is the copy from the last time it was online. */
 export default function OfflineWarmup({ uid }: { uid: string }) {
   useEffect(() => {
@@ -18,7 +20,7 @@ export default function OfflineWarmup({ uid }: { uid: string }) {
     async function run(force: boolean) {
       if (!navigator.onLine || stopped) return;
       const last = JSON.parse(localStorage.getItem(STAMP) || "{}");
-      if (!force && last.uid === uid && Date.now() - last.at < 4 * 3600e3) return;
+      if (!force && last.uid === uid && last.v === WARM_VERSION && Date.now() - last.at < REFRESH_MS) return;
       try {
         const r = await fetch("/api/offline-urls", { cache: "no-store" });
         if (!r.ok) return;
@@ -48,7 +50,7 @@ export default function OfflineWarmup({ uid }: { uid: string }) {
           }
         };
         await Promise.all([loader(), loader(), loader(), loader(), loader()]);
-        localStorage.setItem(STAMP, JSON.stringify({ uid, at: Date.now() }));
+        localStorage.setItem(STAMP, JSON.stringify({ uid, v: WARM_VERSION, at: Date.now() }));
       } catch { /* try again next time */ }
     }
     const t = setTimeout(() => void run(false), 2500);
