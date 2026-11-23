@@ -9,6 +9,7 @@ npm install
 npx cap add android      # generates mobile/android (needs Android Studio / the Android SDK to build)
 npx cap add ios          # generates mobile/ios     (macOS + Xcode only)
 npx cap sync
+cp native/MainActivity.java android/app/src/main/java/com/schoolwell/app/MainActivity.java   # keeps you signed in when the app is closed
 npx cap open android     # then Build > Generate Signed Bundle / APK
 ```
 

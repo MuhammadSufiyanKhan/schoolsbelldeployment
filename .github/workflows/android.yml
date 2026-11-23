@@ -17,6 +17,8 @@ jobs:
         with: { distribution: temurin, java-version: 21 }
       - run: npm install --no-audit --no-fund
       - run: npx cap add android && npx cap sync android
+      - name: Use our MainActivity (saves the sign-in cookie to disk whenever the app leaves the screen)
+        run: cp native/MainActivity.java android/app/src/main/java/com/schoolwell/app/MainActivity.java
       - run: ./gradlew assembleDebug
         working-directory: mobile/android
       - uses: actions/upload-artifact@v4

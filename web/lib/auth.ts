@@ -10,8 +10,12 @@ export type Campus = { id: string; name: string };
 
 /** The signed-in user's id and email, read from the session token without a network call. */
 const getClaims = cache(async () => {
-  const { data } = await (await supabase()).auth.getClaims();
-  return data?.claims ?? null;
+  const sb = await supabase();
+  const { data } = await sb.auth.getClaims();
+  if (data?.claims) return data.claims;
+  // Local check failed (e.g. a transient problem fetching the signing keys): ask Supabase directly rather than treating the person as signed out.
+  const { data: u } = await sb.auth.getUser();
+  return u.user ? { sub: u.user.id, email: u.user.email } : null;
 });
 
 export const getProfile = cache(async (): Promise<Profile | null> => {

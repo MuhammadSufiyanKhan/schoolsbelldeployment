@@ -43,6 +43,12 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // The login session lives in a cookie, and Chromium writes cookies to disk only every ~30 seconds. Closing the app soon after signing in
+  // (or after the hourly session refresh) therefore lost the session and asked for a login again. Write cookies out as soon as they change, and on exit.
+  const ses = session.defaultSession;
+  let pendingFlush;
+  ses.cookies.on("changed", () => { clearTimeout(pendingFlush); pendingFlush = setTimeout(() => ses.cookies.flushStore().catch(() => {}), 150); });
+  app.on("before-quit", () => { ses.cookies.flushStore().catch(() => {}); });
   // Only the camera/microphone (for face attendance and voice features) may be requested, and only by the Schoolwell origin.
   session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(permission === "media" && new URL(wc.getURL()).origin === BASE().origin));
   Menu.setApplicationMenu(Menu.buildFromTemplate([
