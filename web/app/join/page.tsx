@@ -37,7 +37,7 @@ export default async function Join({ searchParams }: { searchParams: SP }) {
           <Field label="Child's date of birth"><input type="date" name="dob" required /></Field>
           <Field label="Your name"><input name="full_name" required /></Field>
           <Field label="Your email"><input type="email" name="email" required autoComplete="username" /></Field>
-          <Field label="Password (8+ characters, letters and numbers)"><input type="password" name="password" required minLength={8} autoComplete="new-password" /></Field>
+          <Field label="Password (8+ characters, letters and numbers)"><input type="password" name="password" required minLength={8} autoComplete="new-password" autoCapitalize="none" autoCorrect="off" spellCheck={false} /></Field>
           <Btn className="w-full">Create account</Btn>
         </form>
         <p className="text-center text-sm text-mute">Already have an account? <Link href="/login" className="text-brand underline">Sign in</Link></p>
