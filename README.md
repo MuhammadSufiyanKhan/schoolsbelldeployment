@@ -41,10 +41,17 @@ Import the repository, set **Root Directory** to `web`, and add `NEXT_PUBLIC_SUP
 `SUPABASE_SERVICE_ROLE_KEY` (mark the last one *Sensitive*) for Production and Preview.
 
 ## Offline
-After you sign in (and again after reconnecting, at most every few hours) the app saves every screen you may use, with its scripts and styles,
-on the device. Opening the app without internet then shows the full interface, even from a cold start, with the data from the last time it was online.
-Fetching new data and saving most changes need internet and are refused with a clear message while offline. **Attendance can be marked offline**: it is stored
-on the device and sent automatically on reconnect. Not yet available offline: recording fee payments and entering marks. Signing out wipes the saved screens.
+After you sign in (and again after a reconnect or an app update, at most once an hour) the app saves every screen you may use, with its scripts and styles, on the
+device. Opening the app without internet then shows the full interface, even from a cold start, with the data from the last time it was online.
+
+**Changes work offline too.** Submitting any form while offline (new student, fee payment, marks, notice, admission, class, leave, ...) keeps the change on the device,
+and a panel lists what is waiting. When the connection returns the changes are sent **one at a time, in order, by one window only**, and the panel shows what the server
+answered for each. A change the server refuses is shown as failed with the server's reason; if the connection drops mid-send the result is "check" (never resent
+automatically, so nothing can be saved twice). Attendance has its own queue. Saved changes survive closing the app.
+
+Always online-only: signing in/out, password changes, creating staff logins, joining as a parent, switching campus, and the timetable slot editor.
+Limits: screens show the data from the last visit until you are online again; a screen that was never opened online (and is not in the saved list) cannot open offline;
+a receipt for an offline payment can only be printed after it is sent. Signing out wipes the saved screens and queue. The saved copy stores school data on the device, so sign out on shared devices.
 Attendance uses the device's local date (not the server's UTC date).
 
 ## Mobile
