@@ -25,7 +25,7 @@ async function candidateModels(): Promise<string[]> {
   } catch { /* use the defaults below */ }
   const stable = ids.filter((i) => /^gemini-\d+(\.\d+)?-flash$/.test(i)).sort((x, y) => parseFloat(y.slice(7)) - parseFloat(x.slice(7)));
   const lite = ids.filter((i) => /^gemini-\d+(\.\d+)?-flash-lite$/.test(i)).sort((x, y) => parseFloat(y.slice(7)) - parseFloat(x.slice(7)));
-  const order = ["gemini-2.5-flash", "gemini-flash-latest", ...stable, ...lite, "gemini-2.5-flash-lite", "gemini-flash-lite-latest"];
+  const order = ["gemini-3.5-flash", ...stable, "gemini-flash-latest", ...lite, "gemini-flash-lite-latest"];   // newest first; retired ids are skipped by the live list
   return [...new Set(order)].filter((i) => !ids.length || ids.includes(i)).slice(0, 5);
 }
 
@@ -75,12 +75,13 @@ export async function askJson<T>(schema: ZodType<T>, o: { system: string; user: 
           messages: [{ role: "user", content }],
         });
         const out = schema.parse(extractJson(text));
+        if (working !== name) console.error("[ai] using model", name);
         working = name;
         return out;
       } catch (e) {
         lastError = e;
         const status = (e as { statusCode?: number })?.statusCode;
-        if (status) { apiError = e; console.error("[ai] model", name, "failed", status); break; }   // this model is unavailable: try the next one
+        if (status) { apiError = e; console.error("[ai] model", name, "failed", status); if (working === name) working = undefined; break; }   // this model is unavailable: try the next one
         if (/timeout|abort/i.test(String((e as Error)?.message))) { apiError = e; break; }
         badJson++;
       }
