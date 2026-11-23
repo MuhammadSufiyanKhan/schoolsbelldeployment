@@ -12,6 +12,21 @@ const read = (): Item[] => { try { return JSON.parse(localStorage.getItem(KEY) |
 const write = (q: Item[]) => { try { localStorage.setItem(KEY, JSON.stringify(q)); } catch { /* storage full or blocked */ } };
 const newId = () => (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now());
 
+/** Only ONE window may send the saved changes at a time: every window of the app shares the same list, and two windows sending together
+ *  would send each change twice. Uses the browser's Web Locks; falls back to a short lease in localStorage where those are missing. */
+async function withLock<T>(fn: () => Promise<T>, ifAvailable = false): Promise<T | undefined> {
+  if (navigator.locks) return navigator.locks.request("schoolwell-queue", { ifAvailable }, async (lock) => (lock ? fn() : undefined));
+  const LEASE = "sw_queue_lock", me = newId();
+  try {
+    const cur = JSON.parse(localStorage.getItem(LEASE) || "null");
+    if (cur && Date.now() - cur.at < 60000) return undefined;
+    localStorage.setItem(LEASE, JSON.stringify({ me, at: Date.now() }));
+    await new Promise((r) => setTimeout(r, 60));
+    if (JSON.parse(localStorage.getItem(LEASE) || "{}").me !== me) return undefined;
+    try { return await fn(); } finally { localStorage.removeItem(LEASE); }
+  } catch { return undefined; }
+}
+
 /** Posts one saved change exactly as the browser would have posted the form. The page's own address is the target, and the
  *  hidden $ACTION fields in the form data identify the action, so no special server code is needed. */
 async function send(item: Item): Promise<Item> {
@@ -45,23 +60,32 @@ export default function OfflineSync() {
     busy.current = true;
     let sentAny = false;
     try {
-      for (const first of read().filter((i) => i.state === "queued")) {   // oldest first: later changes may depend on earlier ones
-        let q = read().map((i) => (i.id === first.id ? { ...i, state: "sending" as State } : i)); write(q); setItems(q);
-        const result = await send({ ...first, state: "sending" });
-        q = read().map((i) => (i.id === result.id ? result : i)); write(q); setItems(q);
-        if (result.state === "done") sentAny = true;
-        if (result.state === "unknown") break;                              // do not pile more changes on top of an uncertain one
-      }
+      await withLock(async () => {
+        for (;;) {
+          const next = read().find((i) => i.state === "queued");                 // always the current shared list, oldest first
+          if (!next) break;
+          let q = read().map((i) => (i.id === next.id ? { ...i, state: "sending" as State } : i)); write(q); setItems(q);
+          const result = await send({ ...next, state: "sending" });
+          q = read().map((i) => (i.id === result.id ? result : i)); write(q); setItems(q);
+          if (result.state === "done") sentAny = true;
+          if (result.state === "unknown") break;                                 // do not pile more changes on top of an uncertain one
+        }
+      });
     } finally { busy.current = false; }
     if (sentAny) { router.refresh(); window.dispatchEvent(new Event("sw-refresh")); }
   }, [router]);
 
   useEffect(() => {
     setOnline(navigator.onLine);
-    // a change that was mid-send when the page closed has an unknown result: never resend it automatically
-    const q0 = read().map((i) => (i.state === "sending" ? { ...i, state: "unknown" as State, note: "The page closed while sending. It may or may not have been saved: check the record, then Retry or Discard." } : i));
-    write(q0); setItems(q0);
-    if (navigator.onLine) void run();
+    setItems(read());
+    // a change that was mid-send when the app closed has an unknown result: never resend it automatically.
+    // (Only when no other window is sending right now, otherwise this would wrongly mark a live send.)
+    void withLock(async () => {
+      const q0 = read().map((i) => (i.state === "sending" ? { ...i, state: "unknown" as State, note: "The app closed while sending. It may or may not have been saved: check the record, then Retry or Discard." } : i));
+      write(q0); setItems(q0);
+    }, true).then(() => { if (navigator.onLine) void run(); });
+    const onStorage = (e: StorageEvent) => { if (e.key === KEY) setItems(read()); };        // another window changed the list
+    window.addEventListener("storage", onStorage);
     const up = () => { setOnline(true); setNotice(""); void run(); }, down = () => setOnline(false);
     const onSubmit = (e: Event) => {
       if (navigator.onLine) return;
@@ -83,7 +107,7 @@ export default function OfflineSync() {
     };
     window.addEventListener("online", up); window.addEventListener("offline", down);
     document.addEventListener("submit", onSubmit, true);
-    return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); document.removeEventListener("submit", onSubmit, true); };
+    return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); document.removeEventListener("submit", onSubmit, true); window.removeEventListener("storage", onStorage); };
   }, [run]);
 
   const update = (fn: (q: Item[]) => Item[]) => { const q = fn(read()); write(q); setItems(q); };
