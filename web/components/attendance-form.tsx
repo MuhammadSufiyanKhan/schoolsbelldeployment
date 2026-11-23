@@ -18,9 +18,12 @@ async function post(item: Item) {
 
 /** Attendance marking that keeps working without internet: unsent days are stored on this device and
  *  sent automatically when the connection returns. Later marks for the same class and day replace earlier ones. */
-export default function AttendanceForm({ students, initial, classId, date, canMark }: { students: Student[]; initial: Record<string, string>; classId: string; date: string; canMark: boolean }) {
+const localToday = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+export default function AttendanceForm({ students, initial, classId, date: serverDate, explicitDate, canMark }: { students: Student[]; initial: Record<string, string>; classId: string; date: string; explicitDate: boolean; canMark: boolean }) {
   const router = useRouter();
   const [marks, setMarks] = useState<Record<string, string>>(() => Object.fromEntries(students.map((s) => [s.id, initial[s.id] ?? "P"])));
+  const [date, setDate] = useState(serverDate);
   const [msg, setMsg] = useState("");
   const [pending, setPending] = useState(0);
 
@@ -35,6 +38,16 @@ export default function AttendanceForm({ students, initial, classId, date, canMa
     if (sent) { setMsg(`Synced ${sent} saved attendance ${sent === 1 ? "sheet" : "sheets"}.`); router.refresh(); }
     q = left;
   }, [router]);
+
+  // The server's clock is UTC, which can be "yesterday" in the school's time zone, and a saved offline copy can be days old.
+  // So unless a date was chosen, the sheet uses today's date on this device.
+  useEffect(() => {
+    if (explicitDate) return;
+    const local = localToday();
+    if (local === serverDate) return;
+    if (navigator.onLine) router.replace(`/attendance?class_id=${classId}&date=${local}`);        // reload with that day's real marks
+    else { setDate(local); setMarks(Object.fromEntries(students.map((s) => [s.id, "P"]))); }    // offline: start a fresh sheet for today
+  }, [explicitDate, serverDate, classId, router, students]);
 
   useEffect(() => {
     setPending(readQueue().length);
@@ -57,6 +70,7 @@ export default function AttendanceForm({ students, initial, classId, date, canMa
 
   return (
     <form onSubmit={submit} data-offline-ok="">
+      <p className="mb-2 text-sm text-mute">Date: <b className="text-fg">{date}</b>{!explicitDate && date !== serverDate && " (today on this device)"}</p>
       {pending > 0 && <div className="mb-3 rounded-lg bg-amber-500/15 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">{pending} attendance {pending === 1 ? "sheet is" : "sheets are"} waiting to be sent. <button type="button" onClick={() => void sync()} className="underline">Send now</button></div>}
       {msg && <div className="mb-3 rounded-lg bg-teal-500/15 px-4 py-2 text-sm text-teal-800 dark:text-teal-300">{msg}</div>}
       <div className="overflow-x-auto"><table className="w-full text-sm">

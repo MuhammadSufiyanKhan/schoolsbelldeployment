@@ -30,7 +30,7 @@ export default async function Attendance({ searchParams }: { searchParams: SP })
       <Flash msg={first(sp.msg)} />
       <Card>
         <form className="mb-4 flex flex-wrap items-end gap-2"><select name="class_id" defaultValue={cls} className="max-w-[12rem]">{(classes ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}-{c.section}</option>)}</select><input type="date" name="date" defaultValue={date} className="max-w-[12rem]" /><button className="rounded-lg border border-line px-4 py-2 text-sm">Load</button></form>
-        {ok && <AttendanceForm key={`${cls}-${date}`} students={students} initial={Object.fromEntries(status)} classId={cls!} date={date} canMark={canMark} />}
+        {ok && <AttendanceForm key={`${cls}-${date}`} students={students} initial={Object.fromEntries(status)} classId={cls!} date={date} explicitDate={!!first(sp.date)} canMark={canMark} />}
         {!ok && <p className="text-sm text-mute">No class available to you.</p>}
       </Card>
       {low.length > 0 && <Card className="mt-4"><h2 className="mb-2 font-semibold">Below 75% attendance</h2><div className="flex flex-wrap gap-2">{low.map((l) => <Badge key={l.name} tone="bad">{l.name} · {l.pct}%</Badge>)}</div></Card>}
