@@ -19,14 +19,26 @@ export async function GET() {
     urls.add(n.href);
   }
   if (!family) {
+    const sb = await supabase();
+    // Detail screens that hold forms people need offline (marks entry, editing a student...). Row level security limits each list to what this person may see.
+    const [exams, students, admissions, staff] = await Promise.all([
+      view("exams") ? sb.from("exams").select("id").order("exam_date", { ascending: false }).limit(25) : null,
+      view("students") ? sb.from("students").select("id").order("created_at", { ascending: false }).limit(40) : null,
+      view("admissions") ? sb.from("admissions").select("id").not("stage", "in", "(enrolled,rejected)").order("created_at", { ascending: false }).limit(30) : null,
+      view("staff") ? sb.from("staff").select("id").order("created_at", { ascending: false }).limit(30) : null,
+    ]);
+    for (const e of exams?.data ?? []) { urls.add(`/exams/${e.id}`); if (add("exams")) urls.add(`/exams/${e.id}/remarks`); }
+    for (const x of students?.data ?? []) urls.add(`/students/${x.id}`);
+    for (const x of admissions?.data ?? []) urls.add(`/admissions/${x.id}`);
+    for (const x of staff?.data ?? []) urls.add(`/staff/${x.id}`);
     if (add("students")) urls.add("/students/new");
     if (add("staff")) urls.add("/staff/new");
     if (view("leave")) urls.add("/leave");
     if (view("staff_attendance")) urls.add("/staff-attendance");
     if (view("attendance")) {
-      const { data } = await (await supabase()).from("classes").select("id").limit(40);   // row level security: teachers only get their own classes
+      const { data } = await sb.from("classes").select("id").limit(40);   // row level security: teachers only get their own classes
       for (const c of data ?? []) urls.add(`/attendance?class_id=${c.id}`);
     }
   }
-  return NextResponse.json({ urls: [...urls].slice(0, 60) }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ urls: [...urls].slice(0, 160) }, { headers: { "Cache-Control": "no-store" } });
 }

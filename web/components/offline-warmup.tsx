@@ -53,8 +53,10 @@ export default function OfflineWarmup({ uid }: { uid: string }) {
     }
     const t = setTimeout(() => void run(false), 2500);
     const online = () => void run(false);
+    const refresh = () => void run(true);          // after queued changes were sent, so the saved screens show them
     window.addEventListener("online", online);
-    return () => { stopped = true; clearTimeout(t); window.removeEventListener("online", online); };
+    window.addEventListener("sw-refresh", refresh);
+    return () => { stopped = true; clearTimeout(t); window.removeEventListener("online", online); window.removeEventListener("sw-refresh", refresh); };
   }, [uid]);
   return null;
 }

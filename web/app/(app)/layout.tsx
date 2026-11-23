@@ -5,7 +5,7 @@ import { requireProfile, getCampuses, scopeCampusId, getPerms } from "@/lib/auth
 import { supabase } from "@/lib/supabase/server";
 import { NAV, ROLE_LABEL, isFamily, type Module } from "@/lib/perm";
 import SignOut from "@/components/sign-out";
-import OfflineBanner from "@/components/offline-banner";
+import OfflineSync from "@/components/offline-sync";
 import OfflineWarmup from "@/components/offline-warmup";
 
 async function logout() {
@@ -46,7 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <SignOut action={logout} />
         </nav>
       </aside>
-      <main className="min-w-0 p-4 md:p-8"><OfflineBanner /><OfflineWarmup uid={p.id} />{p.must_change_password && <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">You are using a temporary password. <Link href="/account" className="font-semibold underline">Change it now</Link>.</div>}{children}</main>
+      <main className="min-w-0 p-4 md:p-8"><OfflineSync /><OfflineWarmup uid={p.id} />{p.must_change_password && <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">You are using a temporary password. <Link href="/account" className="font-semibold underline">Change it now</Link>.</div>}{children}</main>
     </div>
   );
 }

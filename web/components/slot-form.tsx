@@ -12,7 +12,7 @@ export default function SlotForm({ action, classId, day, period, subjects, rooms
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   return (
-    <form action={formAction} className="space-y-1">
+    <form action={formAction} data-online-only="" className="space-y-1">
       <input type="hidden" name="class_id" value={classId} /><input type="hidden" name="day" value={day} /><input type="hidden" name="period" value={period} />
       <select name="subject_id" defaultValue={subjectId} className="!px-1 !py-1 text-xs"><option value="">—</option>{subjects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
       <select name="room_id" defaultValue={roomId} className="!px-1 !py-1 text-[11px]"><option value="">no room</option>{rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
