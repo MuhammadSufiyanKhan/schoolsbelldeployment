@@ -45,6 +45,8 @@ async function send(item: Item): Promise<Item> {
     if (!r.redirected) return { ...item, state: "unknown", note: "Could not confirm this was saved. Check the record, then Retry or Discard." };
     // The server answers every action with a short message. If it is a refusal (validation, duplicate, not allowed...), show it as failed with the server's own words.
     if (u.searchParams.has("err") || REFUSAL.test(said)) return { ...item, state: "failed", note: `The server did not accept this: ${said}` };
+    // Redirected back to the same page with no message at all: the server gave no evidence either way, so never claim "sent".
+    if (!said && u.pathname === item.path.split("?")[0]) return { ...item, state: "unknown", note: "The server gave no confirmation. Check the record, then Retry or Discard." };
     return { ...item, state: "done", note: said || "Saved." };
   } catch {
     return { ...item, state: "unknown", note: "The connection dropped while sending. It may or may not have been saved: check the record, then Retry or Discard." };
