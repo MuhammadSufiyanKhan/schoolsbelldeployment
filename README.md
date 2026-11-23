@@ -76,3 +76,23 @@ Known gaps before a real school goes live: no rate limiting on login or parent s
 npm install
 npm run test:rls       # row level security rules, 29 checks
 ```
+
+## AI features (Google Gemini free tier, `GEMINI_API_KEY`)
+
+The AI only proposes; a person checks and confirms before anything is saved.
+
+| Feature | Where |
+|---|---|
+| Ilmi, the assistant that acts (attendance, notices, homework, low-attendance list, cover suggestions) | `/ilmi` |
+| Marking from photos | Exam → "Mark from photos" |
+| Bubble (OMR) sheets from the camera | Exam → "Bubble sheets" |
+| Report card remarks (English + Urdu) | Exam → Remarks → "Write with AI" |
+| Speak the diary (Urdu/English → both languages, per subject) | `/diary` |
+| Urdu voice for parents (results, diary, notices) | Parent portal, Notices |
+| AI timetable (rules in plain words; the system places periods with no clashes) | Timetable → "AI timetable" |
+| Cover for absent teachers (best free teacher, staff notice) | Timetable → "Cover" |
+| Exam papers, lesson plans, MCQ tests (parents take tests in the portal) | `/academics` |
+| Admission from a photo of the B-form | Admissions → New enquiry |
+| Face attendance (on-device recognition, only children with consent) | Attendance → "Face attendance" |
+
+Migrations `0006` and `0007` add the Urdu name and the tables for these features. Free-tier limits apply: when Google is busy the app says so and you retry.

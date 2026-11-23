@@ -65,7 +65,9 @@ export async function askJson<T>(schema: ZodType<T>, o: { system: string; user: 
   const content = [{ type: "text" as const, text: o.user }, ...(o.images ?? []).map((i) => ({ type: "file" as const, mediaType: i.mediaType, data: i.data }))];
   const started = Date.now();
   let lastError: unknown, badJson = 0, apiError: unknown;
-  for (const name of await candidateModels()) {
+  const names = await candidateModels();
+  for (const name of [...names, ...(names.length > 1 ? ["__pause__", ...names.slice(0, 3)] : [])]) {
+    if (name === "__pause__") { if (!apiError || badJson || 56000 - (Date.now() - started) < 20000) break; await new Promise((r) => setTimeout(r, 5000)); continue; }
     for (let attempt = 0; attempt < 2; attempt++) {
       const left = 56000 - (Date.now() - started);
       if (left < 4000) break;
