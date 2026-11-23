@@ -10,24 +10,23 @@ export const aiReady = () => !!process.env.GEMINI_API_KEY;
 /** A message that is safe to show to the person using the app. */
 export class AiError extends Error { constructor(public userMessage: string) { super(userMessage); } }
 
-let cachedModel: string | undefined;
 /** Picks a current Gemini "flash" model that this key can use (they change over time), unless GEMINI_MODEL says otherwise. */
-async function resolveModel(): Promise<string> {
-  if (process.env.GEMINI_MODEL) return process.env.GEMINI_MODEL;
-  if (cachedModel) return cachedModel;
+// Candidate models, best first. The free tier differs per model (some newer ones have no free quota yet), so the caller tries them in turn
+// and remembers the one that worked.
+let working: string | undefined;
+async function candidateModels(): Promise<string[]> {
+  if (process.env.GEMINI_MODEL) return [process.env.GEMINI_MODEL];
+  if (working) return [working];
+  let ids: string[] = [];
   try {
     const r = await fetch(`${BASE}/models`, { headers: { Authorization: `Bearer ${process.env.GEMINI_API_KEY}` }, signal: AbortSignal.timeout(8000) });
-    if (r.ok) {
-      const ids: string[] = ((await r.json()).data ?? []).map((m: { id: string }) => m.id.replace(/^models\//, ""));
-      // newest stable "flash" model (not lite, preview, image, tts, live...): highest version number wins
-      const ver = (i: string) => Number(/^gemini-(\d+(?:\.\d+)?)-flash$/.exec(i)?.[1] ?? -1);
-      const best = ids.filter((i) => ver(i) > 0).sort((a, b) => ver(b) - ver(a))[0] ?? ids.find((i) => /^gemini-flash-latest$/.test(i)) ?? ids.find((i) => /^gemini-[\d.]+-flash-lite$/.test(i));
-      console.error("[ai] models", ids.filter((i) => /^gemini/.test(i)).slice(0, 25).join(","), "-> using", best);
-      if (best) return (cachedModel = best);
-    }
+    if (r.ok) ids = ((await r.json()).data ?? []).map((m: { id: string }) => m.id.replace(/^models\//, ""));
     else console.error("[ai] model list failed", r.status);
-  } catch { /* fall through to the default */ }
-  return "gemini-flash-latest";   // not cached: try the list again next time
+  } catch { /* use the defaults below */ }
+  const stable = ids.filter((i) => /^gemini-\d+(\.\d+)?-flash$/.test(i)).sort((x, y) => parseFloat(y.slice(7)) - parseFloat(x.slice(7)));
+  const lite = ids.filter((i) => /^gemini-\d+(\.\d+)?-flash-lite$/.test(i)).sort((x, y) => parseFloat(y.slice(7)) - parseFloat(x.slice(7)));
+  const order = ["gemini-2.5-flash", "gemini-flash-latest", ...stable, ...lite, "gemini-2.5-flash-lite", "gemini-flash-lite-latest"];
+  return [...new Set(order)].filter((i) => !ids.length || ids.includes(i)).slice(0, 5);
 }
 
 // Protects the free quota: each person may make a limited number of AI requests per minute.
@@ -62,23 +61,32 @@ export async function askJson<T>(schema: ZodType<T>, o: { system: string; user: 
   if (!aiReady()) throw new AiError("AI is not set up yet (GEMINI_API_KEY is missing).");
   rateLimit(o.who);
   const provider = createOpenAICompatible({ name: "gemini", baseURL: BASE, apiKey: process.env.GEMINI_API_KEY! });
-  const model = provider.chatModel(await resolveModel());
   const content = [{ type: "text" as const, text: o.user }, ...(o.images ?? []).map((i) => ({ type: "file" as const, mediaType: i.mediaType, data: i.data }))];
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const { text } = await generateText({
-        model, temperature: 0.2, maxOutputTokens: o.maxOutputTokens ?? 4000, abortSignal: AbortSignal.timeout(55000),
-        system: o.system + (attempt ? "\nYour previous reply was not valid JSON for the schema. Reply with ONLY the JSON object." : ""),
-        messages: [{ role: "user", content }],
-      });
-      return schema.parse(extractJson(text));
-    } catch (e) {
-      lastError = e;
-      const status = (e as { statusCode?: number })?.statusCode;
-      if (status) throw friendly(e);            // an API/network failure: retrying will not help
+  const started = Date.now();
+  let lastError: unknown, badJson = 0, apiError: unknown;
+  for (const name of await candidateModels()) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const left = 56000 - (Date.now() - started);
+      if (left < 4000) break;
+      try {
+        const { text } = await generateText({
+          model: provider.chatModel(name), temperature: 0.2, maxOutputTokens: o.maxOutputTokens ?? 4000, maxRetries: 0, abortSignal: AbortSignal.timeout(Math.min(left, 30000)),
+          system: o.system + (attempt ? "\nYour previous reply was not valid JSON for the schema. Reply with ONLY the JSON object." : ""),
+          messages: [{ role: "user", content }],
+        });
+        const out = schema.parse(extractJson(text));
+        working = name;
+        return out;
+      } catch (e) {
+        lastError = e;
+        const status = (e as { statusCode?: number })?.statusCode;
+        if (status) { apiError = e; console.error("[ai] model", name, "failed", status); break; }   // this model is unavailable: try the next one
+        if (/timeout|abort/i.test(String((e as Error)?.message))) { apiError = e; break; }
+        badJson++;
+      }
     }
   }
+  if (apiError && !badJson) throw friendly(apiError);
   console.error("AI reply did not match the schema", String((lastError as Error)?.message ?? lastError).slice(0, 300));
   throw new AiError("The AI answer could not be understood. Please try again.");
 }
