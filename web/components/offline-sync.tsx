@@ -10,6 +10,8 @@ const KEY = "sw_queue_v1";
 const ONLINE_ONLY_PATHS = ["/login", "/join", "/account", "/staff/new"];
 const read = (): Item[] => { try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; } };
 const write = (q: Item[]) => { try { localStorage.setItem(KEY, JSON.stringify(q)); } catch { /* storage full or blocked */ } };
+// Words the app's own messages use when something was NOT done.
+const REFUSAL = /could not|must be|check the|invalid|not found|not allowed|possible duplicate|already|nothing to|cannot|can't|refus|required|clash|no campus|accept the application|choose a class|locked|too many|pick a/i;
 const newId = () => (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now());
 
 /** Only ONE window may send the saved changes at a time: every window of the app shares the same list, and two windows sending together
@@ -41,6 +43,8 @@ async function send(item: Item): Promise<Item> {
     if (r.status >= 500) return { ...item, state: "failed", note: "The server had a problem. Use Retry in a moment." };
     // every action ends in a redirect; none means the action did not run (for example the app was updated after this was saved)
     if (!r.redirected) return { ...item, state: "unknown", note: "Could not confirm this was saved. Check the record, then Retry or Discard." };
+    // The server answers every action with a short message. If it is a refusal (validation, duplicate, not allowed...), show it as failed with the server's own words.
+    if (u.searchParams.has("err") || REFUSAL.test(said)) return { ...item, state: "failed", note: `The server did not accept this: ${said}` };
     return { ...item, state: "done", note: said || "Saved." };
   } catch {
     return { ...item, state: "unknown", note: "The connection dropped while sending. It may or may not have been saved: check the record, then Retry or Discard." };
