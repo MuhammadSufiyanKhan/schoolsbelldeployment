@@ -40,6 +40,13 @@ npm run dev                       # http://localhost:3000
 Import the repository, set **Root Directory** to `web`, and add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
 `SUPABASE_SERVICE_ROLE_KEY` (mark the last one *Sensitive*) for Production and Preview.
 
+## Offline
+After you sign in (and again after reconnecting, at most every few hours) the app saves every screen you may use, with its scripts and styles,
+on the device. Opening the app without internet then shows the full interface, even from a cold start, with the data from the last time it was online.
+Fetching new data and saving most changes need internet and are refused with a clear message while offline. **Attendance can be marked offline**: it is stored
+on the device and sent automatically on reconnect. Not yet available offline: recording fee payments and entering marks. Signing out wipes the saved screens.
+Attendance uses the device's local date (not the server's UTC date).
+
 ## Mobile
 **Installable web app:** open the deployed site in Chrome (Android) or Safari (iPhone) and choose *Install app* / *Add to Home Screen*.
 Attendance marked without internet is stored on the device and sent automatically when the connection returns.
