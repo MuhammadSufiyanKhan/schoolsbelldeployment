@@ -42,6 +42,7 @@ function friendly(e: unknown): AiError {
   const status = (e as { statusCode?: number })?.statusCode;
   console.error("[ai] failure", status, text.slice(0, 400));   // never logs the prompt or any key
   if (status === 429 || /quota|rate.?limit|resource.?exhausted|429/i.test(text)) return new AiError("The free AI service is busy or today's free limit was reached. Please try again in a minute (or tomorrow).");
+  if (status === 503 || status === 500 || /unavailable|overloaded/i.test(text)) return new AiError("Google's free AI service is overloaded right now. Please try again in a minute.");
   if (status === 401 || status === 403 || /api key|permission|unauthor/i.test(text)) return new AiError("The AI service key is missing or not accepted. Ask the administrator to check GEMINI_API_KEY.");
   if (/timeout|abort/i.test(text)) return new AiError("The AI service took too long. Please try again.");
   return new AiError("The AI service could not complete this. Please try again.");
