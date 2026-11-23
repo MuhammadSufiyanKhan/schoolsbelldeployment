@@ -60,7 +60,7 @@ export default async function ExamPage({ params, searchParams }: { params: Promi
     <>
       <PageHeader title={ex.name} sub={`${ex.exam_date ?? ""} · each subject out of ${total}`}>
         <Badge tone={ex.published ? "ok" : "warn"}>{ex.published ? "Published" : "Draft"}</Badge>
-        <LinkBtn href={`/exams/${id}/remarks`} ghost>Remarks</LinkBtn><LinkBtn href={`/exams/${id}/report`} ghost>Report cards</LinkBtn>
+        {canEnter && <LinkBtn href={`/exams/${id}/mark`} ghost>📷 Mark from photos</LinkBtn>}<LinkBtn href={`/exams/${id}/remarks`} ghost>Remarks</LinkBtn><LinkBtn href={`/exams/${id}/report`} ghost>Report cards</LinkBtn>
         {canPublish && <form action={setPublished.bind(null, id, !ex.published)}><Btn variant={ex.published ? "ghost" : "primary"}>{ex.published ? "Unpublish" : "Publish to parents"}</Btn></form>}
       </PageHeader>
       <Flash msg={first(sp.msg)} />

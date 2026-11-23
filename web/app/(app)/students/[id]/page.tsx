@@ -10,7 +10,7 @@ async function save(id: string, fd: FormData) {
   await guard("students", "edit");
   const sb = await supabase();
   const { error } = await sb.from("students").update({
-    full_name: str(fd, "full_name"), gender: str(fd, "gender"), dob: str(fd, "dob") || null, class_id: str(fd, "class_id"),
+    full_name: str(fd, "full_name"), full_name_ur: str(fd, "full_name_ur") || null, gender: str(fd, "gender"), dob: str(fd, "dob") || null, class_id: str(fd, "class_id"),
     guardian_name: str(fd, "guardian_name"), guardian_phone: str(fd, "guardian_phone"), guardian_email: str(fd, "guardian_email").toLowerCase() || null,
     address: str(fd, "address"), status: str(fd, "status"),
   }).eq("id", id);

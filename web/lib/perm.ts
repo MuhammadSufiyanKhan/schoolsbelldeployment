@@ -12,6 +12,7 @@ export const isFamily = (r: Role) => r === "parent" || r === "student";
 export const NAV: { href: string; label: string; mod?: Module; family?: boolean; staffOnly?: boolean; roles?: Role[]; icon: string }[] = [
   { href: "/", label: "Dashboard", staffOnly: true, icon: "🏠" },
   { href: "/portal", label: "My children", family: true, icon: "👨‍👩‍👧" },
+  { href: "/ilmi", label: "Ilmi (AI)", staffOnly: true, icon: "✨" },
   { href: "/students", label: "Students", mod: "students", icon: "🎓" },
   { href: "/attendance", label: "Attendance", mod: "attendance", icon: "✅" },
   { href: "/classes", label: "Classes", mod: "classes", icon: "🏫" },

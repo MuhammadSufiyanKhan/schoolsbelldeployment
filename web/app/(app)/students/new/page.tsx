@@ -12,7 +12,7 @@ async function create(fd: FormData) {
   const sb = await supabase();
   const { count } = await sb.from("students").select("*", { count: "exact", head: true });
   const row = {
-    school_id: p.school_id, campus_id: campus.id, class_id: str(fd, "class_id"), full_name: str(fd, "full_name"), gender: str(fd, "gender"),
+    school_id: p.school_id, campus_id: campus.id, class_id: str(fd, "class_id"), full_name: str(fd, "full_name"), full_name_ur: str(fd, "full_name_ur") || null, gender: str(fd, "gender"),
     dob: str(fd, "dob") || null, guardian_name: str(fd, "guardian_name"), guardian_phone: str(fd, "guardian_phone"),
     guardian_email: str(fd, "guardian_email").toLowerCase() || null, address: str(fd, "address"),
   };

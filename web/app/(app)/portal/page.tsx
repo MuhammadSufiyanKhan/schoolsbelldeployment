@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Speak from "@/components/speak";
 import { requireFamily } from "@/lib/auth";
 import { supabase } from "@/lib/supabase/server";
 import { grade } from "@/lib/grade";
@@ -9,7 +10,7 @@ import { Card, PageHeader, Table, Badge, Stat, Grid, money } from "@/components/
 export default async function Portal() {
   await requireFamily();
   const sb = await supabase();
-  const { data: kids } = await sb.from("students").select("id,full_name,admission_no,classes(name,section)").order("full_name");
+  const { data: kids } = await sb.from("students").select("id,full_name,full_name_ur,admission_no,classes(name,section)").order("full_name");
   const { data: pending } = await sb.from("student_guardians").select("student_id,status").eq("status", "pending");
   if (!kids?.length) return (<><PageHeader title="My children" /><Card><p className="text-sm text-mute">{pending?.length ? "Your request has been sent. The school will confirm the link soon." : "No child is linked to this account yet. Please contact the school office."}</p></Card></>);
   const blocks = await Promise.all(kids.map(async (k) => {
@@ -36,8 +37,11 @@ export default async function Portal() {
       <div className="space-y-6">{blocks.map(({ k, pct, fees, exams, remarks, today }) => {
         const cls = k.classes as unknown as { name: string; section: string } | null;
         const due = fees.reduce((a, f) => a + f.bill - f.paid, 0);
+        const last = exams[0];
+        const urdu = `السلام علیکم۔ ${k.full_name_ur || k.full_name}${pct === null ? "" : ` کی حاضری ${pct} فیصد ہے۔`}${last ? ` آخری امتحان ${last.name} میں ${Math.round((last.got / last.max) * 100)} فیصد نمبر آئے ہیں۔` : ""}${due > 0 ? ` واجب الادا فیس ${due} روپے ہے۔` : " کوئی فیس واجب الادا نہیں ہے۔"} شکریہ۔`;
         return (
           <Card key={k.id}><div className="mb-3"><h2 className="text-lg font-bold">{k.full_name}</h2><p className="text-sm text-mute">{cls ? `${cls.name}-${cls.section}` : ""} · {k.admission_no}</p></div>
+            <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg bg-line/50 p-3"><Speak text={urdu} label="Listen in Urdu" /><p dir="rtl" lang="ur" className="flex-1 text-base leading-loose">{urdu}</p></div>
             <Grid cols={3}><Stat label="Attendance" value={pct === null ? "—" : pct + "%"} /><Stat label="Fees due" value={money(due)} /><Stat label="Published exams" value={exams.length} /></Grid>
             {today.length > 0 && <><h3 className="mt-4 mb-1 font-semibold">Today's timetable</h3><div className="flex flex-wrap gap-2">{today.map((t) => <Badge key={t.period} tone="mute">{t.period}. {t.subjects.name}{t.rooms ? ` · ${t.rooms.name}` : ""}</Badge>)}</div></>}
             <h3 className="mt-4 mb-1 font-semibold">Results</h3>

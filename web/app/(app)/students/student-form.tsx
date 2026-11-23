@@ -1,10 +1,11 @@
 import { Field, Btn } from "@/components/ui";
 
-type S = Partial<{ full_name: string; gender: string; dob: string; class_id: string; guardian_name: string; guardian_phone: string; guardian_email: string; address: string; status: string }>;
+type S = Partial<{ full_name: string; full_name_ur: string; gender: string; dob: string; class_id: string; guardian_name: string; guardian_phone: string; guardian_email: string; address: string; status: string }>;
 export default function StudentForm({ action, s = {}, classes, isNew }: { action: (fd: FormData) => Promise<void>; s?: S; classes: { id: string; name: string; section: string }[]; isNew?: boolean }) {
   return (
     <form action={action} className="grid gap-3 md:grid-cols-2">
       <Field label="Full name"><input name="full_name" defaultValue={s.full_name} required /></Field>
+      <Field label="Name in Urdu (optional, used for the Urdu voice)"><input name="full_name_ur" defaultValue={s.full_name_ur ?? ""} dir="rtl" lang="ur" /></Field>
       <Field label="Class"><select name="class_id" defaultValue={s.class_id ?? ""} required><option value="" disabled>Select…</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}-{c.section}</option>)}</select></Field>
       <Field label="Gender"><select name="gender" defaultValue={s.gender ?? "F"}><option value="F">Female</option><option value="M">Male</option></select></Field>
       <Field label="Date of birth"><input type="date" name="dob" defaultValue={s.dob ?? ""} required /></Field>
