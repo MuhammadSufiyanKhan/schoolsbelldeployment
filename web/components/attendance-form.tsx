@@ -56,7 +56,7 @@ export default function AttendanceForm({ students, initial, classId, date, canMa
   }
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} data-offline-ok="">
       {pending > 0 && <div className="mb-3 rounded-lg bg-amber-500/15 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">{pending} attendance {pending === 1 ? "sheet is" : "sheets are"} waiting to be sent. <button type="button" onClick={() => void sync()} className="underline">Send now</button></div>}
       {msg && <div className="mb-3 rounded-lg bg-teal-500/15 px-4 py-2 text-sm text-teal-800 dark:text-teal-300">{msg}</div>}
       <div className="overflow-x-auto"><table className="w-full text-sm">

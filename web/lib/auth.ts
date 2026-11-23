@@ -8,22 +8,33 @@ import { isFamily, type Action, type Module, type Role } from "./perm";
 export type Profile = { id: string; email: string; school_id: string; campus_id: string | null; role: Role; full_name: string; must_change_password: boolean };
 export type Campus = { id: string; name: string };
 
+/** The signed-in user's id and email, read from the session token without a network call. */
+const getClaims = cache(async () => {
+  const { data } = await (await supabase()).auth.getClaims();
+  return data?.claims ?? null;
+});
+
 export const getProfile = cache(async (): Promise<Profile | null> => {
-  const sb = await supabase();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return null;
-  const { data } = await sb.from("profiles").select("id,school_id,campus_id,role,full_name,must_change_password").eq("id", user.id).maybeSingle();
-  return data ? ({ ...data, email: user.email ?? "" } as Profile) : null;
+  const c = await getClaims();
+  if (!c?.sub) return null;
+  const { data } = await (await supabase()).from("profiles").select("id,school_id,campus_id,role,full_name,must_change_password").eq("id", c.sub).maybeSingle();
+  return data ? ({ ...data, email: String(c.email ?? "") } as Profile) : null;
+});
+
+// Row level security returns only this school's permission rows (a few dozen), so they are fetched at the same time as the profile
+// and filtered by role afterwards: one round trip instead of two.
+const permissionRows = cache(async () => {
+  const { data } = await (await supabase()).from("role_permissions").select("role,module,can_view,can_add,can_edit,can_approve,can_download");
+  return data ?? [];
 });
 
 /** Permissions come from the database (editable per school) and are loaded once per request. */
 export const getPerms = cache(async (): Promise<Set<string>> => {
-  const p = await getProfile();
-  if (!p) return new Set();
-  const sb = await supabase();
-  const { data } = await sb.from("role_permissions").select("module,can_view,can_add,can_edit,can_approve,can_download").eq("role", p.role);
+  const [p, rows] = await Promise.all([getProfile(), permissionRows()]);
   const s = new Set<string>();
-  for (const r of data ?? []) {
+  if (!p) return s;
+  for (const r of rows) {
+    if (r.role !== p.role) continue;
     if (r.can_view) s.add(`${r.module}:view`); if (r.can_add) s.add(`${r.module}:add`); if (r.can_edit) s.add(`${r.module}:edit`);
     if (r.can_approve) s.add(`${r.module}:approve`); if (r.can_download) s.add(`${r.module}:download`);
   }

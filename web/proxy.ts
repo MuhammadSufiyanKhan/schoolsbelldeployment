@@ -17,7 +17,9 @@ export async function proxy(req: NextRequest) {
       },
     },
   });
-  const { data: { user } } = await sb.auth.getUser();
+  // getClaims() checks the token signature locally (and refreshes it when it has expired) instead of calling Supabase Auth on every request.
+  const { data } = await sb.auth.getClaims();
+  const user = data?.claims;
   const path = req.nextUrl.pathname;
   if (!user && !PUBLIC.some((p) => path === p || path.startsWith(p + "/"))) return NextResponse.redirect(new URL("/login", req.url));
   return res;

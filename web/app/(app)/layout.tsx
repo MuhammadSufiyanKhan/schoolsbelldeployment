@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { requireProfile, getCampuses, scopeCampusId, can } from "@/lib/auth";
+import { requireProfile, getCampuses, scopeCampusId, getPerms } from "@/lib/auth";
 import { supabase } from "@/lib/supabase/server";
-import { NAV, ROLE_LABEL, isFamily } from "@/lib/perm";
+import { NAV, ROLE_LABEL, isFamily, type Module } from "@/lib/perm";
 import SignOut from "@/components/sign-out";
+import OfflineBanner from "@/components/offline-banner";
 
 async function logout() {
   "use server";
@@ -18,19 +19,14 @@ async function pickCampus(fd: FormData) {
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const p = await requireProfile();
+  const [p, perms] = await Promise.all([requireProfile(), getPerms()]);
   const family = isFamily(p.role);
-  const items = [];
-  for (const n of NAV) {
-    if (n.roles && !n.roles.includes(p.role)) continue;
-    if (n.family ? !family : n.staffOnly ? family : n.mod ? !(await can(n.mod)) : false) continue;
-    items.push(n);
-  }
-  const campuses = await getCampuses();
   const sb = await supabase();
-  const { data: school } = await sb.from("schools").select("name").maybeSingle();
+  const allowed = (m: Module) => p.role === "super_admin" || perms.has(`${m}:view`);
+  const items = NAV.filter((n) => !(n.roles && !n.roles.includes(p.role)) && !(n.family ? !family : n.staffOnly ? family : n.mod ? !allowed(n.mod) : false));
+  const [campuses, schoolRes, current] = await Promise.all([getCampuses(), sb.from("schools").select("name").maybeSingle(), scopeCampusId()]);
+  const school = schoolRes.data;
   const multi = !p.campus_id && campuses.length > 0;
-  const current = await scopeCampusId();
   return (
     <div className="md:grid md:grid-cols-[230px_1fr]">
       <aside className="border-b border-line bg-card md:sticky md:top-0 md:h-screen md:overflow-y-auto md:border-r md:border-b-0">
@@ -49,7 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <SignOut action={logout} />
         </nav>
       </aside>
-      <main className="min-w-0 p-4 md:p-8">{p.must_change_password && <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">You are using a temporary password. <Link href="/account" className="font-semibold underline">Change it now</Link>.</div>}{children}</main>
+      <main className="min-w-0 p-4 md:p-8"><OfflineBanner />{p.must_change_password && <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">You are using a temporary password. <Link href="/account" className="font-semibold underline">Change it now</Link>.</div>}{children}</main>
     </div>
   );
 }
