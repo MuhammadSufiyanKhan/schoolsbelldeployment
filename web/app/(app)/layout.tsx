@@ -22,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const family = isFamily(p.role);
   const items = [];
   for (const n of NAV) {
+    if (n.roles && !n.roles.includes(p.role)) continue;
     if (n.family ? !family : n.staffOnly ? family : n.mod ? !(await can(n.mod)) : false) continue;
     items.push(n);
   }
@@ -48,7 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <SignOut action={logout} />
         </nav>
       </aside>
-      <main className="min-w-0 p-4 md:p-8">{children}</main>
+      <main className="min-w-0 p-4 md:p-8">{p.must_change_password && <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">You are using a temporary password. <Link href="/account" className="font-semibold underline">Change it now</Link>.</div>}{children}</main>
     </div>
   );
 }

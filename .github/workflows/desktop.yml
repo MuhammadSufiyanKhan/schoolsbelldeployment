@@ -1,0 +1,36 @@
+name: Desktop installers
+# Builds the Windows, macOS and Linux installers, each on its own operating system.
+# Run it from the Actions tab ("Run workflow"), or push a tag like desktop-v0.1.0.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["desktop-v*"]
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-audit --no-fund
+      - run: npx electron-builder --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"   # unsigned builds; add signing certificates as secrets to sign them
+      - uses: actions/upload-artifact@v4
+        with:
+          name: schoolwell-desktop-${{ matrix.os }}
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.dmg
+            desktop/dist/*.AppImage
+            desktop/dist/*.deb
+          if-no-files-found: error

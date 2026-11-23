@@ -1,0 +1,12 @@
+{
+  "appId": "com.schoolwell.app",
+  "appName": "Schoolwell",
+  "webDir": "www",
+  "server": {
+    "url": "https://schoolwell.vercel.app",
+    "cleartext": false,
+    "allowNavigation": ["schoolwell.vercel.app"]
+  },
+  "android": { "allowMixedContent": false },
+  "ios": { "contentInset": "always" }
+}

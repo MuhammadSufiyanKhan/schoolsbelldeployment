@@ -69,7 +69,7 @@ ok(JSON.stringify((await as(uTeacher, () => q("select section from classes order
 ok((await as(uTeacher, () => tryq("insert into attendance(student_id,date,school_id,campus_id,class_id,status) values($1,current_date,$2,$3,$4,'P')", [sAyesha, S1, C1, clsA]))).err === undefined, "teacher can mark attendance");
 ok((await as(uTeacher, () => tryq("insert into challans(school_id,campus_id,student_id,month,amount) values($1,$2,$3,'2026-12',1)", [S1, C1, sAyesha]))).err !== undefined, "teacher cannot create challans");
 ok((await as(uTeacher, () => q("select * from challans"))).length === 0, "teacher cannot read fees");
-ok((await as(uTeacher, () => q("select * from staff"))).length === 0, "teacher cannot read staff records");
+ok((await as(uTeacher, () => q("select * from staff"))).length === 1, "teacher cannot read other staff records (only their own)");
 // ── accountant ──
 ok((await as(uAcc, () => q("select * from challans"))).length === 2, "accountant reads campus challans");
 ok((await as(uAcc, () => tryq("insert into payments(school_id,campus_id,challan_id,amount) values($1,$2,$3,100)", [S1, C1, ch]))).err === undefined, "accountant records payment");
@@ -96,5 +96,49 @@ ok((await as(uAdminA, () => q("select * from audit_log"))).every(r => r.campus_i
 // ── permissions are editable per school ──
 await as(uSuper, () => q("insert into role_permissions(school_id,role,module,can_view) values($1,'teacher','fees',true) on conflict (school_id,role,module) do update set can_view=true", [S1]));
 ok((await as(uTeacher, () => q("select * from challans"))).length === 2, "super admin can grant a custom permission");
+
+// ── migration 0004: timetable, payroll, leave, admissions, remarks ──
+const uHr = await user("hr", S1, C1, "hr");
+const uRecep = await user("recep", S1, C1, "receptionist");
+const stf2 = await id("insert into staff(school_id,campus_id,full_name) values($1,$2,'Teacher Two')", [S1, C1]);
+const subjM = await id("insert into subjects(school_id,campus_id,class_id,name,teacher_id) values($1,$2,$3,'Maths',$4)", [S1, C1, clsA, stf]);
+const subjS = await id("insert into subjects(school_id,campus_id,class_id,name,teacher_id) values($1,$2,$3,'Science',$4)", [S1, C1, clsA2, stf]);   // same teacher, other class
+const subjE = await id("insert into subjects(school_id,campus_id,class_id,name,teacher_id) values($1,$2,$3,'English',$4)", [S1, C1, clsA2, stf2]);
+const room = await id("insert into rooms(school_id,campus_id,name) values($1,$2,'Room 1')", [S1, C1]);
+const slot = (cls, subj, day, per, rm) => tryq("insert into timetable(school_id,campus_id,class_id,subject_id,day,period,room_id) values($1,$2,$3,$4,$5,$6,$7)", [S1, C1, cls, subj, day, per, rm]);
+ok((await as(uAdminA, () => slot(clsA, subjM, 0, 1, room))).err === undefined, "timetable: slot saved");
+ok((await as(uAdminA, () => slot(clsA2, subjS, 0, 1, null))).err?.includes("Teacher already booked"), "timetable: teacher booked twice is rejected by the database");
+ok((await as(uAdminA, () => slot(clsA2, subjE, 0, 1, room))).err?.includes("Room already booked"), "timetable: room booked twice is rejected");
+ok((await as(uAdminA, () => slot(clsA2, subjE, 0, 2, room))).err === undefined, "timetable: same room, different period is fine");
+ok((await as(uTeacher, () => tryq("insert into timetable(school_id,campus_id,class_id,subject_id,day,period) values($1,$2,$3,$4,3,3)", [S1, C1, clsA, subjM]))).err !== undefined, "timetable: teacher cannot edit it");
+ok((await as(uTeacher, () => q("select * from timetable"))).every(r => [clsA, clsA2].includes(r.class_id)) && (await as(uTeacher, () => q("select * from timetable"))).length > 0, "timetable: teacher sees only classes they teach");
+ok((await as(uParent, () => q("select * from timetable"))).length === 1, "timetable: parent sees only their child's class");
+// payroll
+const payrollRow = (staff) => tryq("insert into payroll(school_id,campus_id,staff_id,month,base,net) values($1,$2,$3,'2026-11',50000,50000)", [S1, C1, staff]);
+ok((await as(uHr, () => payrollRow(stf))).err === undefined, "payroll: HR can create payslips");
+ok((await as(uTeacher, () => q("select * from payroll"))).length === 1, "payroll: teacher sees only their own payslip");
+ok((await as(uTeacher, () => tryq("update payroll set net=999999 where staff_id=$1", [stf]))).rows?.length === 0 && (await q("select net from payroll where staff_id=$1", [stf]))[0].net == 50000, "payroll: teacher cannot change their own pay");
+ok((await as(uParent, () => q("select * from payroll"))).length === 0, "payroll: parent sees nothing");
+ok((await as(uAdminB, () => q("select * from payroll"))).length === 0, "payroll: other campus sees nothing");
+// leave privacy
+const lv = (staff) => tryq("insert into leaves(school_id,campus_id,staff_id,from_date,to_date,kind) values($1,$2,$3,'2026-12-01','2026-12-02','casual')", [S1, C1, staff]);
+ok((await as(uTeacher, () => lv(stf))).err === undefined, "leave: teacher files own leave");
+ok((await as(uTeacher, () => lv(stf2))).err !== undefined, "leave: teacher cannot file leave for a colleague");
+await q("insert into leaves(school_id,campus_id,staff_id,from_date,to_date,kind) values($1,$2,$3,'2026-12-05','2026-12-06','sick')", [S1, C1, stf2]);
+ok((await as(uTeacher, () => q("select * from leaves"))).length === 1, "leave: teacher sees only their own leave");
+ok((await as(uHr, () => q("select * from leaves"))).length === 2, "leave: HR sees all campus leave");
+ok((await as(uHr, () => tryq("update leaves set status='approved' where staff_id=$1", [stf2]))).err === undefined && (await q("select status from leaves where staff_id=$1", [stf2]))[0].status === "approved", "leave: HR approves");
+const hrStaff = await id("insert into staff(school_id,campus_id,user_id,full_name) values($1,$2,$3,'HR Person')", [S1, C1, uHr]);
+await q("insert into leaves(school_id,campus_id,staff_id,from_date,to_date,kind) values($1,$2,$3,'2026-12-10','2026-12-11','casual')", [S1, C1, hrStaff]);
+ok((await as(uHr, () => tryq("update leaves set status='approved' where staff_id=$1", [hrStaff]))).err?.includes("cannot decide your own"), "leave: nobody approves their own request");
+ok((await as(uTeacher, () => q("select full_name from staff"))).map(r => r.full_name).join() === "Teacher T", "staff: a teacher can read only their own staff record");
+// staff attendance / admissions / remarks
+ok((await as(uTeacher, () => q("select * from staff_attendance"))).length === 0, "staff attendance: teacher cannot see colleagues' attendance");
+ok((await as(uHr, () => tryq("insert into staff_attendance(staff_id,date,school_id,campus_id,status) values($1,current_date,$2,$3,'P')", [stf, S1, C1]))).err === undefined, "staff attendance: HR marks it");
+ok((await as(uRecep, () => tryq("insert into admissions(school_id,campus_id,applicant_name,guardian_name) values($1,$2,'New Kid','G')", [S1, C1]))).err === undefined, "admissions: receptionist records an enquiry");
+ok((await as(uTeacher, () => q("select * from admissions"))).length === 0, "admissions: teacher cannot see them");
+await q("insert into report_remarks(exam_id,student_id,school_id,campus_id,class_id,remark_en) values($1,$2,$3,$4,$5,'Good'),($6,$2,$3,$4,$5,'Draft remark')", [exPub, sAyesha, S1, C1, clsA, exDraft]);
+ok((await as(uParent, () => q("select remark_en from report_remarks"))).map(r => r.remark_en).join() === "Good", "remarks: parent sees only remarks of published exams");
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

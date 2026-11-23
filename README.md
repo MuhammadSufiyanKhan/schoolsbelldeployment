@@ -7,18 +7,22 @@ School management for **web, mobile and desktop**, all on one Supabase (Postgres
 | Web + mobile app | `web/` | Next.js 16 app. On phones it installs from the browser like an app (PWA) and keeps marking attendance offline. |
 | Desktop app | `desktop/` | Electron wrapper (Windows / macOS / Linux) around the same web app. |
 | Database | `supabase/` | SQL migrations: multi-campus schema, roles and permissions, row level security, audit log. |
-| Tests | `scripts/` | 29 checks of the row level security rules on a real Postgres engine (`npm run test:rls`). |
+| Mobile store apps | `mobile/` | Capacitor project for Android / iPhone. |
+| Tests | `scripts/` | 53 checks of the row level security rules on a real Postgres engine (`npm run test:rls`). |
 
 ## What works today
 Login (Supabase Auth) · one school with many campuses (head office sees all, campus staff only their own) · roles and per-module
 permissions (view / add / edit / approve / download, editable per school) · students and parent links · attendance with a 75% warning,
-**offline-capable** · classes and subjects · fee challans, payments, receipts, voiding with a reason · notices · **parent app**
-(sign up with the child's roll number and date of birth; sees only their own children's attendance, published results and fees) ·
-append-only audit log.
+**offline-capable** · classes and subjects · **exams, marks, grades, class positions, English + Urdu report-card remarks and printable A4 report cards**
+(results reach parents only when published) · **staff records with login creation, staff attendance, leave with approval (nobody approves their own),
+payroll with absence deductions, bonus, advances, EOBI and tax, and printable payslips** · **admissions** (enquiry → documents → interview → accepted → enrolled,
+duplicate check) · **timetables** by class, teacher and room (a teacher or room booked twice is refused by the database) · fee challans, payments, receipts,
+voiding with a reason · notices · **parent app** (sign up with the child's roll number and date of birth; sees only their own children's attendance, published results,
+report cards, fees and timetable) · append-only audit log screen.
 
-**Not built yet:** exams and report cards, staff / HR / leave / payroll, admissions, timetables, accounts, the AI features
-(face attendance, marking from photos, Urdu remarks and voice, the spoken diary, the Ilmi assistant). The earlier SQLite versions of
-some of these screens are kept in `web/legacy/` for porting. They are not part of the build.
+**Not built yet:** all the AI features (face attendance, marking from photos, AI Urdu remarks and voice, the spoken diary, the Ilmi assistant, AI timetable, MCQ tests,
+lesson planner), certificates and ID cards, accounts and books (vouchers, bank reconciliation), WhatsApp messages, homework diary, parent-teacher meetings, online admissions
+form, file uploads (admission documents are a checklist only), push notifications. Report-card remarks are rule-based drafts, not AI.
 
 ## Run it locally
 ```bash
@@ -37,12 +41,13 @@ Import the repository, set **Root Directory** to `web`, and add `NEXT_PUBLIC_SUP
 `SUPABASE_SERVICE_ROLE_KEY` (mark the last one *Sensitive*) for Production and Preview.
 
 ## Mobile
-Open the deployed site in Chrome (Android) or Safari (iPhone) and choose *Install app* / *Add to Home Screen*.
+**Installable web app:** open the deployed site in Chrome (Android) or Safari (iPhone) and choose *Install app* / *Add to Home Screen*.
 Attendance marked without internet is stored on the device and sent automatically when the connection returns.
-Native store apps are not part of this repository.
+**Store apps:** `mobile/` is a Capacitor project for Android and iPhone (see `mobile/README.md`); the *Android app* workflow builds an APK. Publishing to Google Play / the App Store needs your own developer accounts.
 
 ## Desktop
 See [`desktop/README.md`](desktop/README.md). In short: `cd desktop && npm install && npm start`, and `npm run dist` builds an installer for the current OS.
+The *Desktop installers* workflow (Actions tab) builds the Windows `.exe`, macOS `.dmg` and Linux `AppImage`/`.deb` on GitHub's own machines. They are unsigned, so Windows SmartScreen and macOS Gatekeeper will warn until you add signing certificates.
 
 ## Security model
 Access is enforced **in the database** (row level security on every table), not only hidden in the screens:
