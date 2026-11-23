@@ -18,10 +18,35 @@
   "build": {
     "appId": "com.schoolwell.desktop",
     "productName": "Schoolwell",
-    "files": ["main.js", "preload.js", "offline.html", "config.json", "build/icon.png"],
-    "directories": { "output": "dist", "buildResources": "build" },
-    "win": { "target": "nsis" },
-    "mac": { "target": "dmg", "category": "public.app-category.education" },
-    "linux": { "target": ["AppImage", "deb"], "category": "Education" }
+    "files": [
+      "main.js",
+      "preload.js",
+      "offline.html",
+      "config.json",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Education"
+    }
+  },
+  "homepage": "https://github.com/MuhammadSufiyanKhan/schoolsbelldeployment",
+  "author": {
+    "name": "Schoolwell",
+    "email": "support@schoolwell.invalid"
   }
 }
