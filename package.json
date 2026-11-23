@@ -1,0 +1,11 @@
+{
+  "name": "schoolwell",
+  "private": true,
+  "description": "Schoolwell: school management for web, mobile (installable PWA) and desktop (Electron), on one Supabase database.",
+  "scripts": {
+    "test:rls": "node scripts/test-rls.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.17"
+  }
+}

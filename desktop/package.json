@@ -1,0 +1,27 @@
+{
+  "name": "schoolwell-desktop",
+  "version": "0.1.0",
+  "description": "Schoolwell desktop app (Windows, macOS, Linux): the Schoolwell web app in a secure native window.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.schoolwell.desktop",
+    "productName": "Schoolwell",
+    "files": ["main.js", "preload.js", "offline.html", "config.json", "build/icon.png"],
+    "directories": { "output": "dist", "buildResources": "build" },
+    "win": { "target": "nsis" },
+    "mac": { "target": "dmg", "category": "public.app-category.education" },
+    "linux": { "target": ["AppImage", "deb"], "category": "Education" }
+  }
+}
