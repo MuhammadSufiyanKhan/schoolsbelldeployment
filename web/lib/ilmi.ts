@@ -11,17 +11,21 @@ import { saveAttendance } from "./attendance";
 const strs = z.array(z.union([z.string(), z.number()]).transform(String)).optional().catch(undefined);
 const Intent = z.object({
   reply: z.string().optional().catch(undefined),
-  intent: z.enum(["none", "mark_attendance", "low_attendance", "post_notice", "suggest_cover"]).catch("none"),
+  intent: z.enum(["none", "mark_attendance", "low_attendance", "post_notice", "suggest_cover", "post_diary"]).catch("none"),
   class_name: z.union([z.string(), z.number()]).transform(String).optional().catch(undefined),
   date: z.string().optional().catch(undefined),
   absent: strs, late: strs, leave: strs,
   threshold: z.coerce.number().optional().catch(undefined),
   notice: z.object({ title: z.string(), body: z.string(), audience: z.string().optional().catch(undefined) }).optional().catch(undefined),
   teacher: z.string().optional().catch(undefined),
+  subject: z.string().optional().catch(undefined),
+  classwork_en: z.string().optional().catch(undefined), classwork_ur: z.string().optional().catch(undefined),
+  homework_en: z.string().optional().catch(undefined), homework_ur: z.string().optional().catch(undefined),
 });
 
 export type Proposal =
   | { kind: "attendance"; classId: string; date: string; marks: Record<string, string>; summary: string }
+  | { kind: "diary"; classId: string; subjectId: string; date: string; classwork_en: string; classwork_ur: string; homework_en: string; homework_ur: string; summary: string }
   | { kind: "notice"; title: string; body: string; audience: "all" | "staff" | "parents"; summary: string };
 export type IlmiResult = { reply: string; proposal?: Proposal };
 
@@ -70,6 +74,7 @@ export async function ilmi(p: Profile, message: string, today: string): Promise<
       `Classes: ${(classes ?? []).map(classLabel).join(", ") || "none yet"}. People's names in the message were replaced by codes like {S12} (student) or {T3} (teacher): keep codes exactly as given. ` +
       "Choose ONE intent. mark_attendance: marking a class present except some children (class_name, optional date as YYYY-MM-DD, absent/late/leave as lists of codes or names). low_attendance: students below an attendance percentage (optional class_name, threshold default 75). " +
       "post_notice: write a clear, polite notice (notice.title, notice.body, audience all|staff|parents). suggest_cover: arrange cover for an absent teacher (teacher code or name, optional date). " +
+      "post_diary: the teacher gives homework or classwork for a subject (class_name, subject, homework_en and homework_ur, optional classwork_en and classwork_ur, optional date): write each in simple English AND Urdu script; never invent details. " +
       "none: greetings, general questions, or anything you cannot do (for example homework entries are not available yet): then put a short helpful answer in reply and say honestly what you can do. " +
       'Reply with ONLY JSON like {"intent":"mark_attendance","class_name":"8-A","date":"2026-01-05","absent":["{S3}"],"late":[],"leave":[],"reply":"short friendly sentence"}.',
     user: tokenize(message, people),
@@ -115,6 +120,19 @@ export async function ilmi(p: Profile, message: string, today: string): Promise<
     return { reply: `Below ${limit}% attendance in ${label} (${low.length}):\n` + low.slice(0, 40).map((x) => `• ${x.s!.full_name} (${cl(x.s!.class_id)}): ${x.pct}%`).join("\n") };
   }
 
+  if (out.intent === "post_diary") {
+    if (!(await can("diary", "add"))) return { reply: "You don't have permission to write the diary." };
+    const c = findClass(out.class_name); if ("problem" in c) return { reply: c.problem as string };
+    const { data: subs } = await sb.from("subjects").select("id,name").eq("class_id", c.cls.id);
+    const q = norm(out.subject ?? ""); const sub = (subs ?? []).find((x) => norm(x.name) === q) ?? (subs ?? []).find((x) => q && (norm(x.name).includes(q) || q.includes(norm(x.name))));
+    if (!sub) return { reply: `Which subject? ${classLabel(c.cls)} has: ${(subs ?? []).map((x) => x.name).join(", ") || "no subjects yet"}.` };
+    if (!out.homework_en && !out.classwork_en) return { reply: "What is the homework or classwork?" };
+    const date = isoDate(out.date) ?? today;
+    const d = { classwork_en: fix(out.classwork_en).slice(0, 1500), classwork_ur: (out.classwork_ur ?? "").slice(0, 1500), homework_en: fix(out.homework_en).slice(0, 1500), homework_ur: (out.homework_ur ?? "").slice(0, 1500) };
+    return { reply: "I've written the diary entry. Please check it and press Confirm. Parents will see it, with Urdu voice.",
+      proposal: { kind: "diary", classId: c.cls.id, subjectId: sub.id, date, ...d, summary: `${classLabel(c.cls)} · ${sub.name} · ${date}${d.classwork_en ? ` — Classwork: ${d.classwork_en}` : ""}${d.homework_en ? ` — Homework: ${d.homework_en}` : ""}` } };
+  }
+
   if (out.intent === "post_notice") {
     if (!(await can("notices", "add"))) return { reply: "You don't have permission to post notices." };
     const n = out.notice; if (!n?.title || !n.body) return { reply: "What should the notice say?" };
@@ -146,7 +164,7 @@ export async function ilmi(p: Profile, message: string, today: string): Promise<
     });
     return { reply: `Cover for ${t.hit.full_name} on ${date}. Free teachers for each period:\n${lines.join("\n")}\n(Suggestions only: arrange it with the teachers.)` };
   }
-  return { reply: fix(out.reply) || "I can mark attendance, list students below an attendance percentage, draft notices and suggest cover for an absent teacher." };
+  return { reply: fix(out.reply) || "I can mark attendance, list students below an attendance percentage, post homework to the diary, draft notices and suggest cover for an absent teacher." };
 }
 
 /** Runs a confirmed proposal with the person's own permissions. The details are re-validated here, never trusted from the browser. */
@@ -156,6 +174,15 @@ export async function confirmProposal(p: Profile, raw: unknown): Promise<{ ok: b
     if (!(await can("attendance", "add"))) return { ok: false, message: "You don't have permission to mark attendance." };
     const r = await saveAttendance(p, { date: a.data.date, class_id: a.data.classId, marks: a.data.marks });
     return r.ok ? { ok: true, message: `Attendance saved for ${r.saved} students.` } : { ok: false, message: r.error };
+  }
+  const dr = z.object({ kind: z.literal("diary"), classId: z.string(), subjectId: z.string(), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), classwork_en: z.string().max(1500), classwork_ur: z.string().max(1500), homework_en: z.string().max(1500), homework_ur: z.string().max(1500) }).safeParse(raw);
+  if (dr.success) {
+    if (!(await can("diary", "add"))) return { ok: false, message: "You don't have permission to write the diary." };
+    const sb = await supabase(); const { data: c } = await sb.from("classes").select("campus_id").eq("id", dr.data.classId).maybeSingle();
+    if (!c) return { ok: false, message: "Class not found." };
+    const { kind: _k, classId, subjectId, ...rest } = dr.data; void _k;
+    const { error } = await sb.from("diary_entries").upsert({ school_id: p.school_id, campus_id: c.campus_id, class_id: classId, subject_id: subjectId, created_by: p.id, source: "ai", ...rest }, { onConflict: "class_id,subject_id,date" });
+    return error ? { ok: false, message: error.message } : { ok: true, message: "Diary entry saved. Parents can see it now." };
   }
   const n = z.object({ kind: z.literal("notice"), title: z.string().min(1).max(150), body: z.string().min(1).max(2000), audience: z.enum(["all", "staff", "parents"]) }).safeParse(raw);
   if (n.success) {

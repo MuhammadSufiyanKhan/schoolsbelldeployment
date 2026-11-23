@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { guard, can, activeCampus, scopeCampusId } from "@/lib/auth";
 import { supabase } from "@/lib/supabase/server";
 import { Card, PageHeader, Table, Badge, Btn, Field, Flash, str, first, type SP } from "@/components/ui";
+import AdmissionPhoto from "@/components/admission-photo";
 import { STAGES, tone, findDuplicates } from "@/lib/admissions";
 
 async function add(fd: FormData) {
@@ -41,7 +42,7 @@ export default async function Admissions({ searchParams }: { searchParams: SP })
           <Table head={["Applicant", "Class", "Guardian", "Stage"]} empty={list.length ? undefined : "No applications."}>
             {list.map((r) => <tr key={r.id}><td><Link className="font-medium text-brand hover:underline" href={`/admissions/${r.id}`}>{r.applicant_name}</Link><div className="text-xs text-mute">{r.created_at.slice(0, 10)}</div></td><td>{r.classes ? `${r.classes.name}-${r.classes.section}` : "—"}</td><td>{r.guardian_name}<div className="text-xs text-mute">{r.guardian_phone}</div></td><td><Badge tone={tone(r.stage)}>{r.stage}</Badge></td></tr>)}</Table>
         </Card>
-        {(await can("admissions", "add")) && <Card><h2 className="mb-3 font-semibold">New enquiry</h2><form action={add} className="space-y-3">
+        {(await can("admissions", "add")) && <Card><h2 className="mb-3 font-semibold">New enquiry</h2><form action={add} className="space-y-3"><AdmissionPhoto />
           <Field label="Applicant's name"><input name="applicant_name" required /></Field><Field label="Date of birth"><input type="date" name="dob" required /></Field>
           <Field label="Guardian"><input name="guardian_name" required /></Field><Field label="Guardian phone"><input name="guardian_phone" /></Field><Field label="Guardian email"><input type="email" name="guardian_email" /></Field>
           <Field label="Applying for"><select name="class_id"><option value="">—</option>{(classes ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}-{c.section}</option>)}</select></Field>

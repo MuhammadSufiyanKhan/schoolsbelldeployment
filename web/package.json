@@ -12,6 +12,7 @@
     "@ai-sdk/openai-compatible": "^3.0.94",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.2",
+    "@vladmandic/face-api": "^1.7.15",
     "ai": "^7.0.179",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.18",

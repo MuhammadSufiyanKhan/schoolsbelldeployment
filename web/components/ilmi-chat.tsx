@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 
 type Proposal = { kind: string; summary: string; [k: string]: unknown };
 type Msg = { from: "me" | "ilmi"; text: string; proposal?: Proposal; state?: "pending" | "done" | "cancelled" };
-const IDEAS = ["Mark Class 1-A present except two children", "Which students are under 75% attendance?", "Write a notice: school closes early on Friday at 12", "Arrange cover for a teacher who is away today"];
+const IDEAS = ["Mark Class 1-A present except two children", "Which students are under 75% attendance?", "Post Maths homework for Class 1-A: exercise 3 on page 20", "Write a notice: school closes early on Friday at 12", "Arrange cover for a teacher who is away today"];
 const localToday = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
 export default function IlmiChat() {

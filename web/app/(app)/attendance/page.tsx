@@ -1,7 +1,7 @@
 import { guard, can } from "@/lib/auth";
 import AttendanceForm from "@/components/attendance-form";
 import { supabase } from "@/lib/supabase/server";
-import { Card, PageHeader, Badge, Flash, today, first, type SP } from "@/components/ui";
+import { LinkBtn, Card, PageHeader, Badge, Flash, today, first, type SP } from "@/components/ui";
 
 export default async function Attendance({ searchParams }: { searchParams: SP }) {
   await guard("attendance");
@@ -26,7 +26,7 @@ export default async function Attendance({ searchParams }: { searchParams: SP })
   const canMark = await can("attendance", "add");
   return (
     <>
-      <PageHeader title="Student attendance" />
+      <PageHeader title="Student attendance"><LinkBtn href="/attendance/face" ghost>📱 Face attendance</LinkBtn></PageHeader>
       <Flash msg={first(sp.msg)} />
       <Card>
         <form className="mb-4 flex flex-wrap items-end gap-2"><select name="class_id" defaultValue={cls} className="max-w-[12rem]">{(classes ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}-{c.section}</option>)}</select><input type="date" name="date" defaultValue={date} className="max-w-[12rem]" /><button className="rounded-lg border border-line px-4 py-2 text-sm">Load</button></form>
