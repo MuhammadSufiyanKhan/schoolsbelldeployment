@@ -8,15 +8,16 @@ import { saveAttendance } from "./attendance";
 // Ilmi: the assistant inside Schoolwell. The AI only works out WHAT the person wants (an "intent"); all lookups, names and changes are done here,
 // under the person's own permissions, and nothing is changed until they press Confirm.
 
+const strs = z.array(z.union([z.string(), z.number()]).transform(String)).optional().catch(undefined);
 const Intent = z.object({
-  reply: z.string().optional(),
+  reply: z.string().optional().catch(undefined),
   intent: z.enum(["none", "mark_attendance", "low_attendance", "post_notice", "suggest_cover"]).catch("none"),
-  class_name: z.string().optional(),
-  date: z.string().optional(),
-  absent: z.array(z.string()).optional(), late: z.array(z.string()).optional(), leave: z.array(z.string()).optional(),
-  threshold: z.number().optional(),
-  notice: z.object({ title: z.string(), body: z.string(), audience: z.string().optional() }).optional(),
-  teacher: z.string().optional(),
+  class_name: z.union([z.string(), z.number()]).transform(String).optional().catch(undefined),
+  date: z.string().optional().catch(undefined),
+  absent: strs, late: strs, leave: strs,
+  threshold: z.coerce.number().optional().catch(undefined),
+  notice: z.object({ title: z.string(), body: z.string(), audience: z.string().optional().catch(undefined) }).optional().catch(undefined),
+  teacher: z.string().optional().catch(undefined),
 });
 
 export type Proposal =
