@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Entry = { subject_id: string; subject: string; classwork_en: string; classwork_ur: string; homework_en: string; homework_ur: string };
 type Rec = { lang: string; interimResults: boolean; continuous: boolean; onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>; resultIndex: number }) => void; onend: () => void; onerror: () => void; start(): void; stop(): void };
@@ -10,7 +10,8 @@ export default function DiaryRecorder({ classes, save }: { classes: { id: string
   const [lang, setLang] = useState("ur-PK"); const [text, setText] = useState(""); const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState(""); const [entries, setEntries] = useState<Entry[] | null>(null);
   const rec = useRef<Rec | null>(null); const base = useRef("");
-  const supported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+  const [supported, setSupported] = useState(false);
+  useEffect(() => setSupported("SpeechRecognition" in window || "webkitSpeechRecognition" in window), []);
 
   function toggle() {
     if (listening) { rec.current?.stop(); return; }

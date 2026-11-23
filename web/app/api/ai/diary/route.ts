@@ -22,11 +22,14 @@ export async function POST(req: Request) {
     const out = await askJson(Out, {
       who: g.p.id, maxOutputTokens: 4000,
       system: "You turn a teacher's spoken or typed account of the day (English, Urdu, or Roman Urdu) into a school diary entry for parents. " +
-        `The class's subjects are: ${subs.map((s) => s.name).join(", ")}. Write one entry for each subject the teacher mentions, using exactly one of those subject names. ` +
+        `The class's subjects are: ${subs.map((s) => s.name).join(", ")}. Write one entry ONLY for each subject the teacher actually mentions (if only one subject is mentioned, return exactly one entry), using exactly one of those subject names. ` +
         "For each, give classwork (what was taught) and homework (what to do at home), each in clear simple English AND in natural, respectful Urdu script. Use an empty string where nothing was said. Never invent topics, pages, or deadlines. " +
         'Reply with ONLY JSON: {"entries":[{"subject":"Maths","classwork_en":"","classwork_ur":"","homework_en":"","homework_ur":""}]}',
       user: text,
     });
+    // Never keep an entry for a subject the teacher did not mention. (If they spoke Urdu script we cannot match names, so the review step is the check.)
+    const heard = norm(text), urdu = /[\u0600-\u06FF]/.test(text);
+    out.entries = out.entries.filter((e) => urdu || heard.includes(norm(e.subject)) || subs.some((s) => norm(s.name) === norm(e.subject) && heard.includes(norm(s.name).slice(0, 4))));
     const entries = out.entries.map((e) => { const hit = subs.find((s) => norm(s.name) === norm(e.subject)) ?? subs.find((s) => norm(s.name).includes(norm(e.subject)) || norm(e.subject).includes(norm(s.name))); return hit ? { ...e, subject_id: hit.id, subject: hit.name } : null; }).filter(Boolean);
     return NextResponse.json({ entries, skipped: out.entries.length - entries.length });
   } catch (e) { return aiFail(e); }
