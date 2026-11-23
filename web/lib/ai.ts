@@ -19,11 +19,15 @@ async function resolveModel(): Promise<string> {
     const r = await fetch(`${BASE}/models`, { headers: { Authorization: `Bearer ${process.env.GEMINI_API_KEY}` }, signal: AbortSignal.timeout(8000) });
     if (r.ok) {
       const ids: string[] = ((await r.json()).data ?? []).map((m: { id: string }) => m.id.replace(/^models\//, ""));
-      const prefer = [/^gemini-2\.5-flash$/, /^gemini-flash-latest$/, /^gemini-2\.0-flash$/, /^gemini-[\d.]+-flash$/, /^gemini-[\d.]+-flash-lite$/];
-      for (const re of prefer) { const hit = ids.find((i) => re.test(i)); if (hit) return (cachedModel = hit); }
+      // newest stable "flash" model (not lite, preview, image, tts, live...): highest version number wins
+      const ver = (i: string) => Number(/^gemini-(\d+(?:\.\d+)?)-flash$/.exec(i)?.[1] ?? -1);
+      const best = ids.filter((i) => ver(i) > 0).sort((a, b) => ver(b) - ver(a))[0] ?? ids.find((i) => /^gemini-flash-latest$/.test(i)) ?? ids.find((i) => /^gemini-[\d.]+-flash-lite$/.test(i));
+      console.error("[ai] models", ids.filter((i) => /^gemini/.test(i)).slice(0, 25).join(","), "-> using", best);
+      if (best) return (cachedModel = best);
     }
+    else console.error("[ai] model list failed", r.status);
   } catch { /* fall through to the default */ }
-  return (cachedModel = "gemini-2.5-flash");
+  return "gemini-flash-latest";   // not cached: try the list again next time
 }
 
 // Protects the free quota: each person may make a limited number of AI requests per minute.
