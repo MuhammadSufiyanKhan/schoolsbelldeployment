@@ -132,7 +132,7 @@ export async function ilmi(p: Profile, message: string, today: string): Promise<
     const [{ data: slots }, { data: absent }, { data: allStaff }] = await Promise.all([
       sb.from("timetable").select("period,day,classes(name,section),subjects(name,teacher_id)").eq("day", day).order("period"),
       sb.from("staff_attendance").select("staff_id,status").eq("date", date).in("status", ["A", "L"]),
-      sb.from("staff").select("id,full_name").eq("status", "active"),
+      sb.from("staff").select("id,full_name").neq("status", "resigned"),
     ]);
     type Slot = { period: number; classes: { name: string; section: string }; subjects: { name: string; teacher_id: string | null } };
     const all = (slots ?? []) as unknown as Slot[];

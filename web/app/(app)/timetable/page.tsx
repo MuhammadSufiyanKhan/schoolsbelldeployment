@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import SlotForm, { type SlotState } from "@/components/slot-form";
 import { guard, can, activeCampus, scopeCampusId } from "@/lib/auth";
 import { supabase } from "@/lib/supabase/server";
-import { Card, PageHeader, Flash, Btn, Field, str, first, type SP } from "@/components/ui";
+import { Card, PageHeader, Flash, Btn, Field, LinkBtn, str, first, type SP } from "@/components/ui";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -58,7 +58,7 @@ export default async function Timetable({ searchParams }: { searchParams: SP }) 
   const tab = (v: string, l: string) => <a key={v} href={`/timetable?view=${v}`} className={`rounded-full border border-line px-3 py-1 text-sm ${view === v ? "bg-brand text-white dark:text-black" : ""}`}>{l}</a>;
   return (
     <>
-      <PageHeader title="Timetable" sub="A teacher or a room booked twice is refused automatically" />
+      <PageHeader title="Timetable" sub="A teacher or a room booked twice is refused automatically">{(await can("timetable", "add")) && <><LinkBtn href="/timetable/generate">✨ AI timetable</LinkBtn><LinkBtn href="/timetable/cover" ghost>Cover</LinkBtn></>}</PageHeader>
       <Flash err={first(sp.err)} />
       <Card className="mb-4"><div className="mb-3 flex gap-2">{tab("class", "By class")}{teachers?.length ? tab("teacher", "By teacher") : null}{tab("room", "By room")}</div>
         <form className="flex items-end gap-2"><input type="hidden" name="view" value={view} />
